@@ -42,8 +42,9 @@ const GLfloat UPPER_ARM_HEIGHT = 5.0;
 const GLfloat UPPER_ARM_WIDTH  = 0.5;
 
 // Shader transformation matrices
-mat4  model_view;
-GLuint ModelView, Projection;
+mat4 model;
+mat4 view;
+GLuint uniModel, uniProjection, uniView;
 
 // Array of rotation angles (in degrees) for each rotation axis
 enum { Base = 0, LowerArm = 1, UpperArm = 2, NumAngles = 3 };
@@ -58,9 +59,7 @@ const int  Quit = 4;
 
 int Index = 0;
 
-void
-quad( int a, int b, int c, int d )
-{
+void quad( int a, int b, int c, int d ) {
     colors[Index] = vertex_colors[a]; points[Index] = vertices[a]; Index++;
     colors[Index] = vertex_colors[a]; points[Index] = vertices[b]; Index++;
     colors[Index] = vertex_colors[a]; points[Index] = vertices[c]; Index++;
@@ -69,9 +68,8 @@ quad( int a, int b, int c, int d )
     colors[Index] = vertex_colors[a]; points[Index] = vertices[d]; Index++;
 }
 
-void
-colorcube()
-{
+// generate a cube
+void colorcube() {
     quad( 1, 0, 3, 2 );
     quad( 2, 3, 7, 6 );
     quad( 3, 0, 4, 7 );
@@ -88,63 +86,58 @@ to its state before functions were entered and use
 rotation, translation, and scaling to create instances
 of symbols (cube and cylinder */
 
-void
-base()
-{
+void base() {
     mat4 instance = ( Translate( 0.0, 0.5 * BASE_HEIGHT, 0.0 ) *
 		 Scale( BASE_WIDTH,
 			BASE_HEIGHT,
 			BASE_WIDTH ) );
 
-    glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+    glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance );
 
     glDrawArrays( GL_TRIANGLES, 0, NumVertices );
 }
 
 //----------------------------------------------------------------------------
 
-void
-upper_arm()
-{
+void upper_arm() {
     mat4 instance = ( Translate( 0.0, 0.5 * UPPER_ARM_HEIGHT, 0.0 ) *
 		      Scale( UPPER_ARM_WIDTH,
 			     UPPER_ARM_HEIGHT,
 			     UPPER_ARM_WIDTH ) );
     
-    glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+    glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance );
     glDrawArrays( GL_TRIANGLES, 0, NumVertices );
 }
 
 //----------------------------------------------------------------------------
 
-void
-lower_arm()
-{
+void lower_arm() {
     mat4 instance = ( Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) *
 		      Scale( LOWER_ARM_WIDTH,
 			     LOWER_ARM_HEIGHT,
 			     LOWER_ARM_WIDTH ) );
     
-    glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+    glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance );
     glDrawArrays( GL_TRIANGLES, 0, NumVertices );
 }
 
 //----------------------------------------------------------------------------
 
-void
-display( void )
-{
+void display( void ) {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    // Accumulate ModelView Matrix as we traverse the tree
-    model_view = RotateY(Theta[Base] );
+    // Accumulate uniModel Matrix as we traverse the tree
+    // TODO: figure out the middle point of the objects
+    view = LookAt(vec4(1, 1, 5, 1), vec4(1, 0, 5, 1), vec4(0, 0, -1, 0));
+    glUniformMatrix4fv(uniView, 1, GL_TRUE, view); 
+    model = RotateY(Theta[Base] );
     base();
 
-    model_view *= ( Translate(0.0, BASE_HEIGHT, 0.0) *
+    model *= ( Translate(0.0, BASE_HEIGHT, 0.0) *
 		    RotateZ(Theta[LowerArm]) );
     lower_arm();
 
-    model_view *= ( Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
+    model *= ( Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
 		    RotateZ(Theta[UpperArm]) );
     upper_arm();
 
@@ -153,9 +146,7 @@ display( void )
 
 //----------------------------------------------------------------------------
 
-void
-init( void )
-{
+void init( void ) {
     colorcube();
     
     // Create a vertex array object
@@ -186,41 +177,47 @@ init( void )
     glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
 			   BUFFER_OFFSET(sizeof(points)) );
 
-    ModelView = glGetUniformLocation( program, "ModelView" );
-    Projection = glGetUniformLocation( program, "Projection" );
+    uniModel = glGetUniformLocation( program, "uniModel" );
+    uniView = glGetUniformLocation(program, "uniView");
+    uniProjection = glGetUniformLocation( program, "uniProjection" );
 
     glEnable( GL_DEPTH );
-    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE);
 
-    glClearColor( 1.0, 1.0, 1.0, 1.0 ); 
+    glClearColor( 0.0, 0.0, 0.0, 1.0 ); 
 }
 
 //----------------------------------------------------------------------------
 
-void
-mouse( int button, int state, int x, int y )
-{
+void mouse( int button, int state, int x, int y ) {
 
     if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN ) {
 	// Incrase the joint angle
-	Theta[Axis] += 5.0;
-	if ( Theta[Axis] > 360.0 ) { Theta[Axis] -= 360.0; }
     }
 
     if ( button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN ) {
 	// Decrase the joint angle
-	Theta[Axis] -= 5.0;
-	if ( Theta[Axis] < 0.0 ) { Theta[Axis] += 360.0; }
     }
 
+}
+
+void onSpecialKeyPressed(int key, int x, int y) {
+    switch(key) {
+        case GLUT_KEY_LEFT:
+            Theta[Axis] += 5.0;
+            if ( Theta[Axis] > 360.0 ) { Theta[Axis] -= 360.0; }
+            break;
+        case GLUT_KEY_RIGHT:
+            Theta[Axis] -= 5.0;
+            if ( Theta[Axis] < 0.0 ) { Theta[Axis] += 360.0; }
+            break;
+    }
     glutPostRedisplay();
 }
 
 //----------------------------------------------------------------------------
 
-void
-menu( int option )
-{
+void menu( int option ) {
     if ( option == Quit ) {
 	exit( EXIT_SUCCESS );
     }
@@ -231,16 +228,14 @@ menu( int option )
 
 //----------------------------------------------------------------------------
 
-void
-reshape( int width, int height )
-{
+void reshape( int width, int height ) {
     glViewport( 0, 0, width, height );
 
     GLfloat  left = -10.0, right = 10.0;
     GLfloat  bottom = -5.0, top = 15.0;
     GLfloat  zNear = -10.0, zFar = 10.0;
 
-    GLfloat aspect = GLfloat(width)/height;
+    GLfloat aspect = GLfloat(width) / height;
 
     if ( aspect > 1.0 ) {
 	left *= aspect;
@@ -252,16 +247,14 @@ reshape( int width, int height )
     }
 
     mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
-    glUniformMatrix4fv( Projection, 1, GL_TRUE, projection );
+    glUniformMatrix4fv( uniProjection, 1, GL_TRUE, projection );
 
-    model_view = mat4( 1.0 );  // An Identity matrix
+    model = mat4( 1.0 );  // An Identity matrix
 }
 
 //----------------------------------------------------------------------------
 
-void
-keyboard( unsigned char key, int x, int y )
-{
+void keyboard( unsigned char key, int x, int y ) {
     switch( key ) {
 	case 033: // Escape Key
 	case 'q': case 'Q':
@@ -272,9 +265,7 @@ keyboard( unsigned char key, int x, int y )
 
 //----------------------------------------------------------------------------
 
-int
-main( int argc, char **argv )
-{
+int main( int argc, char **argv ) {
     glutInit( &argc, argv );
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
     glutInitWindowSize( 512, 512 );
@@ -285,8 +276,10 @@ main( int argc, char **argv )
     init();
 
     glutDisplayFunc( display );
+    // tiggered when window is reshaped
     glutReshapeFunc( reshape );
     glutKeyboardFunc( keyboard );
+    glutSpecialFunc(onSpecialKeyPressed);
     glutMouseFunc( mouse );
 
     glutCreateMenu( menu );
