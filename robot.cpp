@@ -164,7 +164,7 @@ void init( void ) {
     glBufferSubData( GL_ARRAY_BUFFER, sizeof(points), sizeof(colors), colors );
     
     // Load shaders and use the resulting shader program
-    GLuint program = InitShader( "vshader81.glsl", "fshader81.glsl" );
+    GLuint program = InitShader( "vshader.glsl", "fshader.glsl" );
     glUseProgram( program );
     
     GLuint vPosition = glGetAttribLocation( program, "vPosition" );
