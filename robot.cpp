@@ -1,6 +1,10 @@
 
 #include "include/Angel.h"
+#include <iostream>
 #include <assert.h>
+#include <cstring>
+
+using namespace std;
 
 typedef Angel::vec4 point4;
 typedef Angel::vec4 color4;
@@ -57,13 +61,34 @@ GLfloat  Theta[NumAngles] = { 0.0 };
 // Menu option values
 const int  Quit = 4;
 
+// ROBOT_MODE
+enum {
+    FREE = 0,
+    FETCH = 1
+};
+int ROBOT_MODE;
 
+// VIEW_MODE
+enum {
+    TOP = 0,
+    SIDE = 1,
+};
+int VIEW_MODE = SIDE;
+
+// position of sphere
+int old_x, old_y, old_z, new_x, new_y, new_z;
+// equals old xyz first, then new syz, then 000
+int current_target_x, current_target_y, current_target_z;
 //----------------------------------------------------------------------------
 
 int Index = 0;
 
 inline float degree_to_radian(float degree) {
     return degree * Pi / 180;
+}
+
+inline float radian_to_degree(float radian) {
+    return radian * 180 / Pi;
 }
 
 void quad( int a, int b, int c, int d ) {
@@ -103,25 +128,30 @@ void base() {
 
     glDrawArrays( GL_TRIANGLES, 0, NumVertices );
 }
-void move_base(int x, int z) {
+void move_base(int value) {
+    cout << "executing move_base()\n";
     // only execute once move, and call many times
     // calculate the direction: clock-wise (+1) or not (-1)
-    int base_direction = z > 0 ? 1 : -1;
-    // easy to make mistakes here: x, z axis
-    // calculate the radians in x-z axis
+    int base_direction = current_target_z > 0 ? 1 : -1;
+    // easy to make mistakes here: current_target_x, current_target_z axis
+    // calculate the radians in current_target_x-current_target_z axis
     float base_theta = degree_to_radian(180 - Theta[Base]);
     // calculate base vector (point to the direction which arms can move)
-    vec2 base_vector = {cos(base_theta), sin(base_theta)};
-    // vector of sphere in x-z axis
-    vec2 sphere_vector = {x, z};
+    vec2 base_vector = vec2(cos(base_theta), sin(base_theta));
+    // vector of sphere in current_target_x-current_target_z axis
+    vec2 sphere_vector = vec2(current_target_x, current_target_z);
     // alpha is the radian of the difference between the two vectors
     float alpha = acos(dot(base_vector, sphere_vector) / length(sphere_vector)); // note length(base_vector) == 1
+    cout << "Distance angle: " << radian_to_degree(alpha) << endl;
     assert(alpha >= 0);
-    if(alpha > ThetaDelta / 2) {
+    if(alpha > degree_to_radian(ThetaDelta) / 2) {
         // need to rotate
         // TODO:
+        Theta[Base] += base_direction * ThetaDelta;
+        glutPostRedisplay();
         // delay for a period and call myself again
         // TODO:
+        glutTimerFunc(200, move_base, 0);
     } else {
         // no need to rotate, set the flag
         // TODO:
@@ -159,7 +189,11 @@ void display( void ) {
 
     // Accumulate uniModel Matrix as we traverse the tree
     // TODO: figure out the middle point of the objects
-    view = LookAt(vec4(1, 1, 5, 1), vec4(1, 0, 5, 1), vec4(0, 0, -1, 0));
+    if(VIEW_MODE == TOP) {
+        view = LookAt(vec4(1, 1, 5, 1), vec4(1, 0, 5, 1), vec4(0, 0, -1, 0));
+    } else {
+        view = mat4(1);
+    }
     glUniformMatrix4fv(uniView, 1, GL_TRUE, view); 
     model = RotateY(Theta[Base] );
     base();
@@ -220,7 +254,7 @@ void init( void ) {
 
 //----------------------------------------------------------------------------
 
-void mouse( int button, int state, int x, int y ) {
+void mouse( int button, int state, int current_target_x, int y ) {
 
     if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN ) {
 	// Incrase the joint angle
@@ -232,7 +266,7 @@ void mouse( int button, int state, int x, int y ) {
 
 }
 
-void onSpecialKeyPressed(int key, int x, int y) {
+void onSpecialKeyPressed(int key, int current_target_x, int y) {
     switch(key) {
         case GLUT_KEY_LEFT:
             Theta[Axis] += ThetaDelta;
@@ -285,7 +319,7 @@ void reshape( int width, int height ) {
 
 //----------------------------------------------------------------------------
 
-void keyboard( unsigned char key, int x, int y ) {
+void keyboard( unsigned char key, int current_target_x, int y ) {
     switch( key ) {
 	case 033: // Escape Key
 	case 'q': case 'Q':
@@ -298,6 +332,35 @@ void keyboard( unsigned char key, int x, int y ) {
 
 int main( int argc, char **argv ) {
     glutInit( &argc, argv );
+    // parse argv
+    cout << "Number of args: " << argc << endl;
+    if(argc == 8) {
+        ROBOT_MODE = FETCH;
+        cout << "Enter Fetch mode" << endl;
+
+        // assign sphere position
+        old_x = atoi(argv[1]);
+        old_y = atoi(argv[2]);
+        old_z = atoi(argv[3]);
+        new_x = atoi(argv[4]);
+        new_y = atoi(argv[5]);
+        new_z = atoi(argv[6]);
+        current_target_x = old_x;
+        current_target_y = old_y;
+        current_target_z = old_z;
+
+        // perspective
+        if(strcmp("-tv", argv[7]) == 0) {
+            VIEW_MODE = TOP;
+            cout << "Use top view\n";
+        } else {
+            VIEW_MODE = SIDE;
+            cout << "Use side view\n";
+        }
+    } else {
+        ROBOT_MODE = FREE;
+        cout << "Enter Free mode" << endl;
+    }
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
     glutInitWindowSize( 512, 512 );
     glutCreateWindow( "robot" );
@@ -307,7 +370,7 @@ int main( int argc, char **argv ) {
     init();
 
     glutDisplayFunc( display );
-    // tiggered when window is reshaped
+    // triggered when window is reshaped
     glutReshapeFunc( reshape );
     glutKeyboardFunc( keyboard );
     glutSpecialFunc(onSpecialKeyPressed);
@@ -320,6 +383,9 @@ int main( int argc, char **argv ) {
     glutAddMenuEntry( "upper arm", UpperArm );
     glutAddMenuEntry( "quit", Quit );
     glutAttachMenu( GLUT_RIGHT_BUTTON );
+    if(ROBOT_MODE == FETCH) {
+        glutTimerFunc(1000, move_base, 0);
+    }
 
     glutMainLoop();
     return 0;
