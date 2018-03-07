@@ -1,5 +1,6 @@
 
 #include "include/Angel.h"
+#include <assert.h>
 
 typedef Angel::vec4 point4;
 typedef Angel::vec4 color4;
@@ -40,6 +41,8 @@ const GLfloat LOWER_ARM_HEIGHT = 5.0;
 const GLfloat LOWER_ARM_WIDTH  = 0.5;
 const GLfloat UPPER_ARM_HEIGHT = 5.0;
 const GLfloat UPPER_ARM_WIDTH  = 0.5;
+const GLfloat ThetaDelta = 5.0;
+const GLfloat Pi = 3.141592653589793;
 
 // Shader transformation matrices
 mat4 model;
@@ -58,6 +61,10 @@ const int  Quit = 4;
 //----------------------------------------------------------------------------
 
 int Index = 0;
+
+inline float degree_to_radian(float degree) {
+    return degree * Pi / 180;
+}
 
 void quad( int a, int b, int c, int d ) {
     colors[Index] = vertex_colors[a]; points[Index] = vertices[a]; Index++;
@@ -95,6 +102,30 @@ void base() {
     glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance );
 
     glDrawArrays( GL_TRIANGLES, 0, NumVertices );
+}
+void move_base(int x, int z) {
+    // only execute once move, and call many times
+    // calculate the direction: clock-wise (+1) or not (-1)
+    int base_direction = z > 0 ? 1 : -1;
+    // easy to make mistakes here: x, z axis
+    // calculate the radians in x-z axis
+    float base_theta = degree_to_radian(180 - Theta[Base]);
+    // calculate base vector (point to the direction which arms can move)
+    vec2 base_vector = {cos(base_theta), sin(base_theta)};
+    // vector of sphere in x-z axis
+    vec2 sphere_vector = {x, z};
+    // alpha is the radian of the difference between the two vectors
+    float alpha = acos(dot(base_vector, sphere_vector) / length(sphere_vector)); // note length(base_vector) == 1
+    assert(alpha >= 0);
+    if(alpha > ThetaDelta / 2) {
+        // need to rotate
+        // TODO:
+        // delay for a period and call myself again
+        // TODO:
+    } else {
+        // no need to rotate, set the flag
+        // TODO:
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -204,11 +235,11 @@ void mouse( int button, int state, int x, int y ) {
 void onSpecialKeyPressed(int key, int x, int y) {
     switch(key) {
         case GLUT_KEY_LEFT:
-            Theta[Axis] += 5.0;
+            Theta[Axis] += ThetaDelta;
             if ( Theta[Axis] > 360.0 ) { Theta[Axis] -= 360.0; }
             break;
         case GLUT_KEY_RIGHT:
-            Theta[Axis] -= 5.0;
+            Theta[Axis] -= ThetaDelta;
             if ( Theta[Axis] < 0.0 ) { Theta[Axis] += 360.0; }
             break;
     }
