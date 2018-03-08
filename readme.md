@@ -27,6 +27,9 @@ $ ./myrobot old_x old_y old_z new_x new_y new_z <-tv | -sv>
 $ ./myrobot 1 1 1 2 2 2 -tv
 ```
 
+<img src="images/demo_1.gif" width="45%"/><img src="images/demo_2.gif" width="45%"/>
+
+
 The last argument specifies whether “top” (-tv) or “side view” (-sv) is used.
 
 When the program is run, it should first display a solid sphere (with its material  and reflectance properties at your choice) centered at (old_x, old_y, old_z) whose diameter matches the side length of top face of the upper arm (see figure below).
