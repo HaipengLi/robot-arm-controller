@@ -82,10 +82,10 @@ enum {
     ABOSOLUTE = 0,
     ATTACHED = 1,
 };
-int SPHERE_STATUS = ATTACHED;
+int SPHERE_STATUS = ABOSOLUTE;
 
 // fetch status
-bool FETCH_STATUS[2][3] = {{false}, {false}};
+bool FETCH_STATUS[2][NumAngles] = {{false}, {false}};
 
 // position of sphere
 vec3 targets[2] = {
@@ -180,16 +180,46 @@ void draw_sphere() {
     glutSolidSphere (1.0, 20, 20);
 }
 
+void move_lower_arm(int value) {
+    cout << "executing move_lower_arm()\n";
+    vec4 lower_arm_top_center_relative_position = vec4(0, 0.5, 0, 1);
+    vec4 lower_arm_top_center_world_position = RotateY(Theta[BASE]) * Translate(0.0, BASE_HEIGHT, 0.0) * RotateZ(Theta[LOWER_ARM]) * Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) * Scale(LOWER_ARM_WIDTH, LOWER_ARM_HEIGHT, LOWER_ARM_WIDTH) * lower_arm_top_center_relative_position;
+    vec4 sphere_position = vec4(targets[current_target_index], 1);
+    GLfloat distance = length(lower_arm_top_center_world_position - sphere_position);
+    if(fabs(distance - UPPER_ARM_HEIGHT) > UPPER_ARM_WIDTH) {
+        // if already search 180 degree
+        if(Theta[LOWER_ARM] == 180) {
+            cout << "Error: the sphere is too far!!\n";
+            return;
+        }
+        // the sphere cannot be fetched
+        // TODO: Error
+        // the upper arm cannot fetch
+        // rotate
+        Theta[LOWER_ARM] += ThetaDelta;
+        glutPostRedisplay();
+        // set timer
+        glutTimerFunc(200, move_lower_arm, 0);
+    } else {
+        // the upper arm can fetch
+        // set the flag
+        FETCH_STATUS[current_target_index][LOWER_ARM] = true;
+        cout << "Fetch status [" << current_target_index << "] base finished!\n";
+        // start upper arm
+        // TODO:
+    }
+}
+
 void move_base(int value) {
     cout << "executing move_base()\n";
     // only execute once move, and call many times
     // calculate the direction: clock-wise (+1) or not (-1)
     int base_direction = targets[current_target_index][2] > 0 ? 1 : -1;
+    // calculate the -x vector (point to the direction which arms can move)
+    // using RotateY to convert
+    vec4 base_vector_4d = RotateY(Theta[BASE]) * vec4(-1, 0, 0, 0);
+    vec2 base_vector = vec2(base_vector_4d[0], base_vector_4d[2]);
     // easy to make mistakes here: current_target_x, current_target_z axis
-    // calculate the radians in current_target_x-current_target_z axis
-    float base_theta = degree_to_radian(180 - Theta[BASE]);
-    // calculate base vector (point to the direction which arms can move)
-    vec2 base_vector = vec2(cos(base_theta), sin(base_theta));
     // vector of sphere in current_target_x-current_target_z axis
     vec2 sphere_vector = vec2(targets[current_target_index][0], targets[current_target_index][2]);
     // alpha is the radian of the difference between the two vectors
@@ -209,8 +239,10 @@ void move_base(int value) {
         glutTimerFunc(200, move_base, 0);
     } else {
         // no need to rotate, set the flag
-        FETCH_STATUS[current_target_index][0] = true;
+        FETCH_STATUS[current_target_index][BASE] = true;
         cout << "Fetch status [" << current_target_index << "] base finished!\n";
+        // start next arm
+        glutTimerFunc(500, move_lower_arm, 0);
     }
 }
 
