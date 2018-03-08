@@ -55,12 +55,13 @@ mat4 view;
 GLuint uniModel, uniProjection, uniView;
 
 // Array of rotation angles (in degrees) for each rotation axis
-enum { Base = 0, LowerArm = 1, UpperArm = 2, NumAngles = 3 };
-int      Axis = Base;
+enum { BASE = 0, LOWER_ARM = 1, UPPER_ARM = 2, NumAngles = 3 };
+int      Axis = BASE;
 GLfloat  Theta[NumAngles] = { 0.0 };
 
 // Menu option values
-const int  Quit = 4;
+const int  QUIT = 5;
+const int  SWITCH_VIEW = 4;
 
 // ROBOT_MODE
 enum {
@@ -186,7 +187,7 @@ void move_base(int value) {
     int base_direction = targets[current_target_index][2] > 0 ? 1 : -1;
     // easy to make mistakes here: current_target_x, current_target_z axis
     // calculate the radians in current_target_x-current_target_z axis
-    float base_theta = degree_to_radian(180 - Theta[Base]);
+    float base_theta = degree_to_radian(180 - Theta[BASE]);
     // calculate base vector (point to the direction which arms can move)
     vec2 base_vector = vec2(cos(base_theta), sin(base_theta));
     // vector of sphere in current_target_x-current_target_z axis
@@ -202,15 +203,12 @@ void move_base(int value) {
     assert(alpha >= 0);
     if(alpha > degree_to_radian(ThetaDelta) / 2) {
         // need to rotate
-        // TODO:
-        Theta[Base] += base_direction * ThetaDelta;
+        Theta[BASE] += base_direction * ThetaDelta;
         glutPostRedisplay();
         // delay for a period and call myself again
-        // TODO:
         glutTimerFunc(200, move_base, 0);
     } else {
         // no need to rotate, set the flag
-        // TODO:
         FETCH_STATUS[current_target_index][0] = true;
         cout << "Fetch status [" << current_target_index << "] base finished!\n";
     }
@@ -228,15 +226,15 @@ void display( void ) {
     glUniformMatrix4fv(uniView, 1, GL_TRUE, view); 
 
     // Accumulate uniModel Matrix as we traverse the tree
-    model = RotateY(Theta[Base] );
+    model = RotateY(Theta[BASE] );
     draw_base();
 
     model *= ( Translate(0.0, BASE_HEIGHT, 0.0) *
-		    RotateZ(Theta[LowerArm]) );
+		    RotateZ(Theta[LOWER_ARM]) );
     draw_lower_arm();
 
     model *= ( Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
-		    RotateZ(Theta[UpperArm]) );
+		    RotateZ(Theta[UPPER_ARM]) );
     draw_upper_arm();
 
     model *= (Translate(0.0, UPPER_ARM_HEIGHT, 0.0));
@@ -320,11 +318,13 @@ void onSpecialKeyPressed(int key, int current_target_x, int y) {
 //----------------------------------------------------------------------------
 
 void menu( int option ) {
-    if ( option == Quit ) {
-	exit( EXIT_SUCCESS );
-    }
-    else {
-	Axis = option;
+    if ( option == QUIT ) {
+        exit( EXIT_SUCCESS );
+    } else if(option == SWITCH_VIEW) {
+        VIEW_MODE = 1 - VIEW_MODE;
+        glutPostRedisplay();
+    } else {
+        Axis = option;
     }
 }
 
@@ -407,11 +407,12 @@ int main( int argc, char **argv ) {
     glutMouseFunc( mouse );
 
     glutCreateMenu( menu );
-    // Set the menu values to the relevant rotation axis values (or Quit)
-    glutAddMenuEntry( "base", Base );
-    glutAddMenuEntry( "lower arm", LowerArm );
-    glutAddMenuEntry( "upper arm", UpperArm );
-    glutAddMenuEntry( "quit", Quit );
+    // Set the menu values to the relevant rotation axis values (or QUIT)
+    glutAddMenuEntry( "base", BASE );
+    glutAddMenuEntry( "lower arm", LOWER_ARM );
+    glutAddMenuEntry( "upper arm", UPPER_ARM );
+    glutAddMenuEntry( "switch view", SWITCH_VIEW);
+    glutAddMenuEntry( "quit", QUIT );
     glutAttachMenu( GLUT_RIGHT_BUTTON );
     if(ROBOT_MODE == FETCH) {
         glutTimerFunc(1000, move_base, 0);
