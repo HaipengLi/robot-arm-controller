@@ -187,14 +187,15 @@ void lower_arm() {
 void display( void ) {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    // Accumulate uniModel Matrix as we traverse the tree
-    // TODO: figure out the middle point of the objects
+    // TODO: figure out the middle point of the objects problem
     if(VIEW_MODE == TOP) {
         view = LookAt(vec4(1, 1, 5, 1), vec4(1, 0, 5, 1), vec4(0, 0, -1, 0));
     } else {
         view = mat4(1);
     }
     glUniformMatrix4fv(uniView, 1, GL_TRUE, view); 
+
+    // Accumulate uniModel Matrix as we traverse the tree
     model = RotateY(Theta[Base] );
     base();
 
