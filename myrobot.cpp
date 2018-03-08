@@ -45,14 +45,10 @@ const GLfloat LOWER_ARM_HEIGHT = 5.0;
 const GLfloat LOWER_ARM_WIDTH  = 0.5;
 const GLfloat UPPER_ARM_HEIGHT = 5.0;
 const GLfloat UPPER_ARM_WIDTH  = 0.5;
-const GLfloat ThetaDelta = 5.0;
-const GLfloat Pi = 3.141592653589793;
+const GLfloat THETADELTA = 5.0;
+const GLfloat PI = 3.141592653589793;
 const color4 BACKGROUND_COLOR = vec4(0.5, 0.5, 0.5, 1);
-
-// Shader transformation matrices
-mat4 model;
-mat4 view;
-GLuint uniModel, uniProjection, uniView;
+int MOVE_DELAY= 100;
 
 // Array of rotation angles (in degrees) for each rotation axis
 enum { BASE = 0, LOWER_ARM = 1, UPPER_ARM = 2, NumAngles = 3 };
@@ -83,10 +79,14 @@ enum {
     ATTACHED = 1,
 };
 int SPHERE_STATUS = ABOSOLUTE;
-int MOVE_DELAY= 100;
 
 // fetch status
 bool FETCH_STATUS[2][NumAngles] = {{false}, {false}};
+// Shader transformation matrices
+mat4 model;
+mat4 view;
+GLuint uniModel, uniProjection, uniView;
+
 
 // position of sphere
 vec3 targets[2] = {
@@ -105,11 +105,11 @@ void reset_arms(int);
 void reset_arm(int);
 
 inline float degree_to_radian(float degree) {
-    return degree * Pi / 180;
+    return degree * PI / 180;
 }
 
 inline float radian_to_degree(float radian) {
-    return radian * 180 / Pi;
+    return radian * 180 / PI;
 }
 
 void quad( int a, int b, int c, int d ) {
@@ -200,7 +200,7 @@ void reset_arm(int axis) {
     if(Theta[axis] <= 0) {
         Theta[axis] = 0;
     } else {
-        Theta[axis] -= ThetaDelta;
+        Theta[axis] -= THETADELTA;
     }
 }
 void reset_arms(int value) {
@@ -234,7 +234,7 @@ void move_upper_arm(int value) {
         }
         // the upper arm cannot fetch
         // rotate
-        Theta[UPPER_ARM] += ThetaDelta;
+        Theta[UPPER_ARM] += THETADELTA;
         // set timer
         glutTimerFunc(MOVE_DELAY, move_upper_arm, 0);
     } else {
@@ -273,7 +273,7 @@ void move_lower_arm(int value) {
         }
         // the upper arm cannot fetch
         // rotate
-        Theta[LOWER_ARM] += ThetaDelta;
+        Theta[LOWER_ARM] += THETADELTA;
         glutPostRedisplay();
         // set timer
         glutTimerFunc(MOVE_DELAY, move_lower_arm, 0);
@@ -308,9 +308,9 @@ void move_base(int value) {
     }
     cout << "Distance angle: " << radian_to_degree(alpha) << endl;
     assert(alpha >= 0);
-    if(alpha > degree_to_radian(ThetaDelta) / 2) {
+    if(alpha > degree_to_radian(THETADELTA) / 2) {
         // need to rotate
-        Theta[BASE] += base_direction * ThetaDelta;
+        Theta[BASE] += base_direction * THETADELTA;
         glutPostRedisplay();
         // delay for a period and call myself again
         glutTimerFunc(MOVE_DELAY, move_base, 0);
@@ -412,11 +412,11 @@ void mouse( int button, int state, int current_target_x, int y ) {
 void onSpecialKeyPressed(int key, int current_target_x, int y) {
     switch(key) {
         case GLUT_KEY_LEFT:
-            Theta[Axis] += ThetaDelta;
+            Theta[Axis] += THETADELTA;
             if ( Theta[Axis] > 360.0 ) { Theta[Axis] -= 360.0; }
             break;
         case GLUT_KEY_RIGHT:
-            Theta[Axis] -= ThetaDelta;
+            Theta[Axis] -= THETADELTA;
             if ( Theta[Axis] < 0.0 ) { Theta[Axis] += 360.0; }
             break;
     }
