@@ -83,6 +83,7 @@ enum {
     ATTACHED = 1,
 };
 int SPHERE_STATUS = ABOSOLUTE;
+int MOVE_DELAY= 100;
 
 // fetch status
 bool FETCH_STATUS[2][NumAngles] = {{false}, {false}};
@@ -180,13 +181,46 @@ void draw_sphere() {
     glutSolidSphere (1.0, 20, 20);
 }
 
+void move_upper_arm(int value) {
+    cout << "executing move_upper_arm()\n";
+    vec4 upper_arm_top_center_relative_position = vec4(0, 0.5, 0, 1);
+    vec4 lower_arm_top_center_world_position = RotateY(Theta[BASE]) * Translate(0.0, BASE_HEIGHT, 0.0) * RotateZ(Theta[LOWER_ARM]) * Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
+		    RotateZ(Theta[UPPER_ARM]) * Translate( 0.0, 0.5 * UPPER_ARM_HEIGHT, 0.0 ) * Scale(UPPER_ARM_WIDTH, UPPER_ARM_HEIGHT, UPPER_ARM_WIDTH) * upper_arm_top_center_relative_position;
+        vec4 sphere_position = vec4(targets[current_target_index], 1);
+    GLfloat distance = length(lower_arm_top_center_world_position - sphere_position);
+    if(fabs(distance) > UPPER_ARM_WIDTH) {
+        // if already search 180 degree
+        if(Theta[UPPER_ARM] == 360) {
+            // should not happen!
+            assert(1 == 0);
+            cout << "Error: the sphere is too far!!\n";
+            return;
+        }
+        // the sphere cannot be fetched
+        // TODO: Error
+        // the upper arm cannot fetch
+        // rotate
+        Theta[UPPER_ARM] += ThetaDelta;
+        glutPostRedisplay();
+        // set timer
+        glutTimerFunc(MOVE_DELAY, move_upper_arm, 0);
+    } else {
+        // the upper arm can fetch
+        // set the flag
+        FETCH_STATUS[current_target_index][UPPER_ARM] = true;
+        cout << "Fetch status [" << current_target_index << "] base finished!\n";
+        // start upper arm
+        // TODO:
+    }
+}
+
 void move_lower_arm(int value) {
     cout << "executing move_lower_arm()\n";
     vec4 lower_arm_top_center_relative_position = vec4(0, 0.5, 0, 1);
     vec4 lower_arm_top_center_world_position = RotateY(Theta[BASE]) * Translate(0.0, BASE_HEIGHT, 0.0) * RotateZ(Theta[LOWER_ARM]) * Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) * Scale(LOWER_ARM_WIDTH, LOWER_ARM_HEIGHT, LOWER_ARM_WIDTH) * lower_arm_top_center_relative_position;
     vec4 sphere_position = vec4(targets[current_target_index], 1);
-    GLfloat distance = length(lower_arm_top_center_world_position - sphere_position);
-    if(fabs(distance - UPPER_ARM_HEIGHT) > UPPER_ARM_WIDTH) {
+    GLfloat distance = length(lower_arm_top_center_world_position - sphere_position) - UPPER_ARM_WIDTH / 2;
+    if(fabs(distance - UPPER_ARM_HEIGHT) > UPPER_ARM_WIDTH / 2) {
         // if already search 180 degree
         if(Theta[LOWER_ARM] == 180) {
             cout << "Error: the sphere is too far!!\n";
@@ -199,14 +233,14 @@ void move_lower_arm(int value) {
         Theta[LOWER_ARM] += ThetaDelta;
         glutPostRedisplay();
         // set timer
-        glutTimerFunc(200, move_lower_arm, 0);
+        glutTimerFunc(MOVE_DELAY, move_lower_arm, 0);
     } else {
         // the upper arm can fetch
         // set the flag
         FETCH_STATUS[current_target_index][LOWER_ARM] = true;
         cout << "Fetch status [" << current_target_index << "] base finished!\n";
         // start upper arm
-        // TODO:
+        glutTimerFunc(MOVE_DELAY, move_upper_arm, 0);
     }
 }
 
@@ -236,13 +270,13 @@ void move_base(int value) {
         Theta[BASE] += base_direction * ThetaDelta;
         glutPostRedisplay();
         // delay for a period and call myself again
-        glutTimerFunc(200, move_base, 0);
+        glutTimerFunc(MOVE_DELAY, move_base, 0);
     } else {
         // no need to rotate, set the flag
         FETCH_STATUS[current_target_index][BASE] = true;
         cout << "Fetch status [" << current_target_index << "] base finished!\n";
         // start next arm
-        glutTimerFunc(500, move_lower_arm, 0);
+        glutTimerFunc(MOVE_DELAY, move_lower_arm, 0);
     }
 }
 
@@ -447,7 +481,7 @@ int main( int argc, char **argv ) {
     glutAddMenuEntry( "quit", QUIT );
     glutAttachMenu( GLUT_RIGHT_BUTTON );
     if(ROBOT_MODE == FETCH) {
-        glutTimerFunc(1000, move_base, 0);
+        glutTimerFunc(MOVE_DELAY, move_base, 0);
     }
 
     glutMainLoop();
