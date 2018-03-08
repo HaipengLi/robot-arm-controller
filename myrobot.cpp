@@ -25,7 +25,7 @@ point4 vertices[8] = {
     point4(  0.5, -0.5, -0.5, 1.0 )
 };
 
-// RGBA olors
+// RGBA colors
 color4 vertex_colors[8] = {
     color4( 0.0, 0.0, 0.0, 1.0 ),  // black
     color4( 1.0, 0.0, 0.0, 1.0 ),  // red
