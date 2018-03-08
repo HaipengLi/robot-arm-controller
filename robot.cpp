@@ -192,7 +192,12 @@ void move_base(int value) {
     // vector of sphere in current_target_x-current_target_z axis
     vec2 sphere_vector = vec2(targets[current_target_index][0], targets[current_target_index][2]);
     // alpha is the radian of the difference between the two vectors
-    float alpha = acos(dot(base_vector, sphere_vector) / length(sphere_vector)); // note length(base_vector) == 1
+    float alpha;
+    if(length(sphere_vector) == 0) {
+        alpha = 0;
+    } else {
+        alpha = acos(dot(base_vector, sphere_vector) / length(sphere_vector)); // note length(base_vector) == 1
+    }
     cout << "Distance angle: " << radian_to_degree(alpha) << endl;
     assert(alpha >= 0);
     if(alpha > degree_to_radian(ThetaDelta) / 2) {
