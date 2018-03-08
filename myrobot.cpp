@@ -101,10 +101,8 @@ int Index = 0;
 void move_base(int);
 void move_lower_arm(int);
 void move_upper_arm(int);
-void reset_base(int);
-void reset_lower_arm(int);
-void reset_upper_arm(int);
 void reset_arms(int);
+void reset_arm(int);
 
 inline float degree_to_radian(float degree) {
     return degree * Pi / 180;
@@ -230,12 +228,10 @@ void move_upper_arm(int value) {
         // if already search 180 degree
         if(Theta[UPPER_ARM] == 360) {
             // should not happen!
-            assert(1 == 0);
             cout << "Error: the sphere is too far!!\n";
+            cout << "This is a problem caused by calculation precision\n";
             return;
         }
-        // the sphere cannot be fetched
-        // TODO: Error
         // the upper arm cannot fetch
         // rotate
         Theta[UPPER_ARM] += ThetaDelta;
@@ -268,14 +264,13 @@ void move_lower_arm(int value) {
     vec4 upper_arm_top_center_world_position = RotateY(Theta[BASE]) * Translate(0.0, BASE_HEIGHT, 0.0) * RotateZ(Theta[LOWER_ARM]) * Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) * Scale(LOWER_ARM_WIDTH, LOWER_ARM_HEIGHT, LOWER_ARM_WIDTH) * lower_arm_top_center_relative_position;
     vec4 sphere_position = vec4(targets[current_target_index], 1);
     GLfloat distance = length(upper_arm_top_center_world_position - sphere_position) - UPPER_ARM_WIDTH / 2;
-    if(fabs(distance - UPPER_ARM_HEIGHT) > UPPER_ARM_WIDTH / 10) {
-        // if already search 180 degree
-        if(Theta[LOWER_ARM] == 360 - ThetaDelta) {
+    if(fabs(distance - UPPER_ARM_HEIGHT) > UPPER_ARM_WIDTH / 5) {
+        // if already search 360 degree
+        if(Theta[LOWER_ARM] == 360) {
+            // the sphere cannot be fetched
             cout << "Error: the sphere is too far!!\n";
             return;
         }
-        // the sphere cannot be fetched
-        // TODO: Error
         // the upper arm cannot fetch
         // rotate
         Theta[LOWER_ARM] += ThetaDelta;
@@ -331,7 +326,6 @@ void move_base(int value) {
 void display( void ) {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    // TODO: figure out the middle point of the objects problem
     if(VIEW_MODE == TOP) {
         view = LookAt(vec4(1, 2, 5, 1), vec4(1, 0, 5, 1), vec4(0, 0, -1, 0));
     } else {
