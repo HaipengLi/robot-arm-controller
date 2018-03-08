@@ -91,12 +91,20 @@ bool FETCH_STATUS[2][NumAngles] = {{false}, {false}};
 // position of sphere
 vec3 targets[2] = {
     vec3(0, 0, 0),
-    vec3(0, 0, 0)
+    vec3(0, 0, 0),
 };
 int current_target_index = 0;
 //----------------------------------------------------------------------------
 
 int Index = 0;
+
+void move_base(int);
+void move_lower_arm(int);
+void move_upper_arm(int);
+void reset_base(int);
+void reset_lower_arm(int);
+void reset_upper_arm(int);
+void reset_arms(int);
 
 inline float degree_to_radian(float degree) {
     return degree * Pi / 180;
@@ -172,22 +180,52 @@ void draw_lower_arm() {
 void draw_sphere() {
     mat4 instance;
     if(SPHERE_STATUS == ATTACHED) {
-        instance = Translate(0, 0, 0) * Scale(UPPER_ARM_WIDTH, UPPER_ARM_WIDTH, UPPER_ARM_WIDTH);
+        instance = Translate(0, 0, 0) * Scale(UPPER_ARM_WIDTH / 2, UPPER_ARM_WIDTH / 2, UPPER_ARM_WIDTH / 2);
         glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance ); 
     } else {
-        instance = Translate(targets[current_target_index]) * Scale(UPPER_ARM_WIDTH, UPPER_ARM_WIDTH, UPPER_ARM_WIDTH);
+        instance = Translate(targets[current_target_index]) * Scale(UPPER_ARM_WIDTH / 2, UPPER_ARM_WIDTH / 2, UPPER_ARM_WIDTH / 2);
         glUniformMatrix4fv(uniModel, 1, GL_TRUE, instance); 
     }
     glutSolidSphere (1.0, 20, 20);
 }
 
+inline bool arms_are_reset() {
+    for(int axis = 0; axis < NumAngles; axis++) {
+        if(Theta[axis] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void reset_arm(int axis) {
+    if(Theta[axis] <= 0) {
+        Theta[axis] = 0;
+    } else {
+        Theta[axis] -= ThetaDelta;
+    }
+}
+void reset_arms(int value) {
+
+    for(int axis = 0; axis < NumAngles; axis++) {
+        reset_arm(axis);
+    }
+
+    if(arms_are_reset()) {
+        cout << "Finish all!\n";
+    } else {
+        glutTimerFunc(MOVE_DELAY, reset_arms, 0);
+    }
+    glutPostRedisplay();
+}
+
 void move_upper_arm(int value) {
     cout << "executing move_upper_arm()\n";
     vec4 upper_arm_top_center_relative_position = vec4(0, 0.5, 0, 1);
-    vec4 lower_arm_top_center_world_position = RotateY(Theta[BASE]) * Translate(0.0, BASE_HEIGHT, 0.0) * RotateZ(Theta[LOWER_ARM]) * Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
+    vec4 upper_arm_top_center_world_position = RotateY(Theta[BASE]) * Translate(0.0, BASE_HEIGHT, 0.0) * RotateZ(Theta[LOWER_ARM]) * Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
 		    RotateZ(Theta[UPPER_ARM]) * Translate( 0.0, 0.5 * UPPER_ARM_HEIGHT, 0.0 ) * Scale(UPPER_ARM_WIDTH, UPPER_ARM_HEIGHT, UPPER_ARM_WIDTH) * upper_arm_top_center_relative_position;
         vec4 sphere_position = vec4(targets[current_target_index], 1);
-    GLfloat distance = length(lower_arm_top_center_world_position - sphere_position);
+    GLfloat distance = length(upper_arm_top_center_world_position - sphere_position);
     if(fabs(distance) > UPPER_ARM_WIDTH) {
         // if already search 180 degree
         if(Theta[UPPER_ARM] == 360) {
@@ -201,7 +239,6 @@ void move_upper_arm(int value) {
         // the upper arm cannot fetch
         // rotate
         Theta[UPPER_ARM] += ThetaDelta;
-        glutPostRedisplay();
         // set timer
         glutTimerFunc(MOVE_DELAY, move_upper_arm, 0);
     } else {
@@ -209,20 +246,31 @@ void move_upper_arm(int value) {
         // set the flag
         FETCH_STATUS[current_target_index][UPPER_ARM] = true;
         cout << "Fetch status [" << current_target_index << "] base finished!\n";
-        // start upper arm
-        // TODO:
+        // if finish state 1, continue state 2
+        if(current_target_index == 0) {
+            current_target_index++;
+            SPHERE_STATUS = ATTACHED;
+            glutTimerFunc(2 * MOVE_DELAY, move_base, 0);
+
+        } else if(current_target_index == 1) {
+            // drop the sphere and return to init position
+            SPHERE_STATUS = ABOSOLUTE;
+            // call reset function
+            glutTimerFunc(2 * MOVE_DELAY, reset_arms, 0);
+        }
     }
+    glutPostRedisplay();
 }
 
 void move_lower_arm(int value) {
     cout << "executing move_lower_arm()\n";
     vec4 lower_arm_top_center_relative_position = vec4(0, 0.5, 0, 1);
-    vec4 lower_arm_top_center_world_position = RotateY(Theta[BASE]) * Translate(0.0, BASE_HEIGHT, 0.0) * RotateZ(Theta[LOWER_ARM]) * Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) * Scale(LOWER_ARM_WIDTH, LOWER_ARM_HEIGHT, LOWER_ARM_WIDTH) * lower_arm_top_center_relative_position;
+    vec4 upper_arm_top_center_world_position = RotateY(Theta[BASE]) * Translate(0.0, BASE_HEIGHT, 0.0) * RotateZ(Theta[LOWER_ARM]) * Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) * Scale(LOWER_ARM_WIDTH, LOWER_ARM_HEIGHT, LOWER_ARM_WIDTH) * lower_arm_top_center_relative_position;
     vec4 sphere_position = vec4(targets[current_target_index], 1);
-    GLfloat distance = length(lower_arm_top_center_world_position - sphere_position) - UPPER_ARM_WIDTH / 2;
-    if(fabs(distance - UPPER_ARM_HEIGHT) > UPPER_ARM_WIDTH / 2) {
+    GLfloat distance = length(upper_arm_top_center_world_position - sphere_position) - UPPER_ARM_WIDTH / 2;
+    if(fabs(distance - UPPER_ARM_HEIGHT) > UPPER_ARM_WIDTH / 10) {
         // if already search 180 degree
-        if(Theta[LOWER_ARM] == 180) {
+        if(Theta[LOWER_ARM] == 360 - ThetaDelta) {
             cout << "Error: the sphere is too far!!\n";
             return;
         }
@@ -348,7 +396,7 @@ void init( void ) {
     uniProjection = glGetUniformLocation( program, "uniProjection" );
 
     glEnable( GL_DEPTH );
-    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL);
 
     glClearColor(BACKGROUND_COLOR[0], BACKGROUND_COLOR[1], BACKGROUND_COLOR[2], BACKGROUND_COLOR[3]); 
 }
