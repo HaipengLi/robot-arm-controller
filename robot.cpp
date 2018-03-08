@@ -47,6 +47,7 @@ const GLfloat UPPER_ARM_HEIGHT = 5.0;
 const GLfloat UPPER_ARM_WIDTH  = 0.5;
 const GLfloat ThetaDelta = 5.0;
 const GLfloat Pi = 3.141592653589793;
+const color4 BACKGROUND_COLOR = vec4(0.5, 0.5, 0.5, 1);
 
 // Shader transformation matrices
 mat4 model;
@@ -75,10 +76,22 @@ enum {
 };
 int VIEW_MODE = SIDE;
 
+// sphere status
+enum {
+    ABOSOLUTE = 0,
+    ATTACHED = 1,
+};
+int SPHERE_STATUS = ATTACHED;
+
+// fetch status
+bool FETCH_STATUS[2][3] = {{false}, {false}};
+
 // position of sphere
-int old_x, old_y, old_z, new_x, new_y, new_z;
-// equals old xyz first, then new syz, then 000
-int current_target_x, current_target_y, current_target_z;
+vec3 targets[2] = {
+    vec3(0, 0, 0),
+    vec3(0, 0, 0)
+};
+int current_target_index = 0;
 //----------------------------------------------------------------------------
 
 int Index = 0;
@@ -118,7 +131,7 @@ to its state before functions were entered and use
 rotation, translation, and scaling to create instances
 of symbols (cube and cylinder */
 
-void base() {
+void draw_base() {
     mat4 instance = ( Translate( 0.0, 0.5 * BASE_HEIGHT, 0.0 ) *
 		 Scale( BASE_WIDTH,
 			BASE_HEIGHT,
@@ -128,18 +141,56 @@ void base() {
 
     glDrawArrays( GL_TRIANGLES, 0, NumVertices );
 }
+
+//----------------------------------------------------------------------------
+
+void draw_upper_arm() {
+    mat4 instance = ( Translate( 0.0, 0.5 * UPPER_ARM_HEIGHT, 0.0 ) *
+		      Scale( UPPER_ARM_WIDTH,
+			     UPPER_ARM_HEIGHT,
+			     UPPER_ARM_WIDTH ) );
+    
+    glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance );
+    glDrawArrays( GL_TRIANGLES, 0, NumVertices );
+}
+
+//----------------------------------------------------------------------------
+
+void draw_lower_arm() {
+    mat4 instance = ( Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) *
+		      Scale( LOWER_ARM_WIDTH,
+			     LOWER_ARM_HEIGHT,
+			     LOWER_ARM_WIDTH ) );
+    
+    glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance );
+    glDrawArrays( GL_TRIANGLES, 0, NumVertices );
+}
+
+//----------------------------------------------------------------------------
+void draw_sphere() {
+    mat4 instance;
+    if(SPHERE_STATUS == ATTACHED) {
+        instance = Translate(0, 0, 0) * Scale(UPPER_ARM_WIDTH, UPPER_ARM_WIDTH, UPPER_ARM_WIDTH);
+        glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance ); 
+    } else {
+        instance = Translate(targets[current_target_index]) * Scale(UPPER_ARM_WIDTH, UPPER_ARM_WIDTH, UPPER_ARM_WIDTH);
+        glUniformMatrix4fv(uniModel, 1, GL_TRUE, instance); 
+    }
+    glutSolidSphere (1.0, 20, 20);
+}
+
 void move_base(int value) {
     cout << "executing move_base()\n";
     // only execute once move, and call many times
     // calculate the direction: clock-wise (+1) or not (-1)
-    int base_direction = current_target_z > 0 ? 1 : -1;
+    int base_direction = targets[current_target_index][2] > 0 ? 1 : -1;
     // easy to make mistakes here: current_target_x, current_target_z axis
     // calculate the radians in current_target_x-current_target_z axis
     float base_theta = degree_to_radian(180 - Theta[Base]);
     // calculate base vector (point to the direction which arms can move)
     vec2 base_vector = vec2(cos(base_theta), sin(base_theta));
     // vector of sphere in current_target_x-current_target_z axis
-    vec2 sphere_vector = vec2(current_target_x, current_target_z);
+    vec2 sphere_vector = vec2(targets[current_target_index][0], targets[current_target_index][2]);
     // alpha is the radian of the difference between the two vectors
     float alpha = acos(dot(base_vector, sphere_vector) / length(sphere_vector)); // note length(base_vector) == 1
     cout << "Distance angle: " << radian_to_degree(alpha) << endl;
@@ -155,41 +206,17 @@ void move_base(int value) {
     } else {
         // no need to rotate, set the flag
         // TODO:
+        FETCH_STATUS[current_target_index][0] = true;
+        cout << "Fetch status [" << current_target_index << "] base finished!\n";
     }
 }
-
-//----------------------------------------------------------------------------
-
-void upper_arm() {
-    mat4 instance = ( Translate( 0.0, 0.5 * UPPER_ARM_HEIGHT, 0.0 ) *
-		      Scale( UPPER_ARM_WIDTH,
-			     UPPER_ARM_HEIGHT,
-			     UPPER_ARM_WIDTH ) );
-    
-    glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance );
-    glDrawArrays( GL_TRIANGLES, 0, NumVertices );
-}
-
-//----------------------------------------------------------------------------
-
-void lower_arm() {
-    mat4 instance = ( Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) *
-		      Scale( LOWER_ARM_WIDTH,
-			     LOWER_ARM_HEIGHT,
-			     LOWER_ARM_WIDTH ) );
-    
-    glUniformMatrix4fv( uniModel, 1, GL_TRUE, model * instance );
-    glDrawArrays( GL_TRIANGLES, 0, NumVertices );
-}
-
-//----------------------------------------------------------------------------
 
 void display( void ) {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
     // TODO: figure out the middle point of the objects problem
     if(VIEW_MODE == TOP) {
-        view = LookAt(vec4(1, 1, 5, 1), vec4(1, 0, 5, 1), vec4(0, 0, -1, 0));
+        view = LookAt(vec4(1, 2, 5, 1), vec4(1, 0, 5, 1), vec4(0, 0, -1, 0));
     } else {
         view = mat4(1);
     }
@@ -197,15 +224,19 @@ void display( void ) {
 
     // Accumulate uniModel Matrix as we traverse the tree
     model = RotateY(Theta[Base] );
-    base();
+    draw_base();
 
     model *= ( Translate(0.0, BASE_HEIGHT, 0.0) *
 		    RotateZ(Theta[LowerArm]) );
-    lower_arm();
+    draw_lower_arm();
 
     model *= ( Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
 		    RotateZ(Theta[UpperArm]) );
-    upper_arm();
+    draw_upper_arm();
+
+    model *= (Translate(0.0, UPPER_ARM_HEIGHT, 0.0));
+    // draw sphere
+    draw_sphere();
 
     glutSwapBuffers();
 }
@@ -250,7 +281,7 @@ void init( void ) {
     glEnable( GL_DEPTH );
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE);
 
-    glClearColor( 0.0, 0.0, 0.0, 1.0 ); 
+    glClearColor(BACKGROUND_COLOR[0], BACKGROUND_COLOR[1], BACKGROUND_COLOR[2], BACKGROUND_COLOR[3]); 
 }
 
 //----------------------------------------------------------------------------
@@ -340,15 +371,8 @@ int main( int argc, char **argv ) {
         cout << "Enter Fetch mode" << endl;
 
         // assign sphere position
-        old_x = atoi(argv[1]);
-        old_y = atoi(argv[2]);
-        old_z = atoi(argv[3]);
-        new_x = atoi(argv[4]);
-        new_y = atoi(argv[5]);
-        new_z = atoi(argv[6]);
-        current_target_x = old_x;
-        current_target_y = old_y;
-        current_target_z = old_z;
+        targets[0] = vec3(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+        targets[1] = vec3(atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
 
         // perspective
         if(strcmp("-tv", argv[7]) == 0) {
