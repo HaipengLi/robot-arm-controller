@@ -203,6 +203,7 @@ void reset_arm(int axis) {
         Theta[axis] -= THETADELTA;
     }
 }
+
 void reset_arms(int value) {
 
     for(int axis = 0; axis < NumAngles; axis++) {
@@ -213,6 +214,18 @@ void reset_arms(int value) {
         cout << "Finish all!\n";
     } else {
         glutTimerFunc(MOVE_DELAY, reset_arms, 0);
+    }
+    glutPostRedisplay();
+}
+
+
+void reset_lower_arm(int value) {
+    if(Theta[LOWER_ARM] <= 0) {
+        Theta[LOWER_ARM] = 0;
+        glutTimerFunc(2 * MOVE_DELAY, move_base, 0);
+    } else {
+        Theta[LOWER_ARM] -= THETADELTA;
+        glutTimerFunc(MOVE_DELAY, reset_lower_arm, 0);
     }
     glutPostRedisplay();
 }
@@ -246,8 +259,7 @@ void move_upper_arm(int value) {
         if(current_target_index == 0) {
             current_target_index++;
             SPHERE_STATUS = ATTACHED;
-            glutTimerFunc(2 * MOVE_DELAY, move_base, 0);
-
+            glutTimerFunc(MOVE_DELAY, reset_lower_arm, 0);
         } else if(current_target_index == 1) {
             // drop the sphere and return to init position
             SPHERE_STATUS = ABOSOLUTE;
@@ -266,11 +278,11 @@ void move_lower_arm(int value) {
     GLfloat distance = length(upper_arm_top_center_world_position - sphere_position) - UPPER_ARM_WIDTH / 2;
     if(fabs(distance - UPPER_ARM_HEIGHT) > UPPER_ARM_WIDTH / 5) {
         // if already search 360 degree
-        if(Theta[LOWER_ARM] == 360) {
-            // the sphere cannot be fetched
-            cout << "Error: the sphere is too far!!\n";
-            return;
-        }
+        // if(Theta[LOWER_ARM] == 360) {
+        //     // the sphere cannot be fetched
+        //     cout << "Error: the sphere is too far!!\n";
+        //     return;
+        // }
         // the upper arm cannot fetch
         // rotate
         Theta[LOWER_ARM] += THETADELTA;
