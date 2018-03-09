@@ -34,7 +34,7 @@ EXECUTABLE=myrobot
 # to your program here 
 
 # Linux (default)
-LDFLAGS = -lGL -lglut -lGLEW -lXext -lX11 -lm -std=c++11 -ggdb
+LDFLAGS = -lGL -lglut -lGLEW -lXext -lX11 -lm -std=c++11
 
 # If you have other library files in a different directory add them here 
 INCLUDEFLAG= -I. -I$(INCLUDEDIR) -Iinclude/
