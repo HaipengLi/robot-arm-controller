@@ -401,7 +401,7 @@ void init( void ) {
     uniView = glGetUniformLocation(program, "uniView");
     uniProjection = glGetUniformLocation( program, "uniProjection" );
 
-    glEnable( GL_DEPTH );
+    glEnable( GL_DEPTH_TEST );
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE);
 
     glClearColor(BACKGROUND_COLOR[0], BACKGROUND_COLOR[1], BACKGROUND_COLOR[2], BACKGROUND_COLOR[3]); 
